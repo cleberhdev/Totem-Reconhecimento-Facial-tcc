@@ -1,4 +1,3 @@
----
 
 # 🛡️ Sistema de Reconhecimento Facial Seguro na Borda (*Edge Computing*)
 
