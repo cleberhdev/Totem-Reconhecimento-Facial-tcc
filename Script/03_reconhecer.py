@@ -17,14 +17,11 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, Response, jsonify, request
 from cryptography.fernet import Fernet
 
-# Tenta importar o módulo do Laser (Labrador/Raspberry). Se não achar (Desktop), não quebra o código.
-try:
-    sys.path.append("./VL53L0X_rasp_python/python")
-    import VL53L0X
-    SENSOR_DISPONIVEL = True
-except ImportError:
-    print("[AVISO] Biblioteca VL53L0X não encontrada. Modo Desktop (sem laser) ativado.")
-    SENSOR_DISPONIVEL = False
+sys.path.append("./VL53L0X_rasp_python/python")
+import VL53L0X
+SENSOR_DISPONIVEL = True
+print("[SENSOR] Biblioteca VL53L0X importada com sucesso!")
+
 
 # ==============================================================================
 # GESTÃO AUTOMÁTICA DE CHAVES (Não precisa mais passar via terminal)
@@ -59,7 +56,7 @@ fernet_cipher = Fernet(CHAVE_SESSAO.encode())
 # ==============================================================================
 ARQUIVO_DADOS = "encodings.pickle"
 BANCO_DADOS = "totem_banco.db"
-URL_CAMERA =  "http://192.168.1.37/stream" # Coloque o IP do Droidcam ou da Câmera IP
+URL_CAMERA =  "http://192.168.137.159/stream" # Coloque o IP do Droidcam ou da Câmera IP
 INTERVALO_SCAN_IA = 4.0
 DELAY_RECONHECIMENTO = 5.0
 
@@ -96,7 +93,7 @@ ultimo_nome_reconhecido = None
 # Módulo Laser
 DISTANCIA_GATILHO_MM = 800
 # Se o sensor não existir (Desktop), assume que sempre tem alguém na frente para poder testar.
-pessoa_na_frente = not SENSOR_DISPONIVEL 
+pessoa_na_frente = FALSE
 
 # ==============================================================================
 # SEGURANÇA E MATEMÁTICA LGPD
@@ -136,42 +133,51 @@ def gerar_token_acesso(usuario_id, nome):
 # ==============================================================================
 def thread_sensor_distancia():
     global pessoa_na_frente
-    if not SENSOR_DISPONIVEL:
-        return
 
     try:
+        # Cria o objeto UMA ÚNICA VEZ na memória
         sensor = VL53L0X.VL53L0X(address=0x29)
         sensor.start_ranging(VL53L0X.VL53L0X_BETTER_ACCURACY_MODE)
-        print("[SENSOR] Laser VL53L0X Inicializado!")
+        print("[SENSOR] Laser VL53L0X Inicializado! Começando as leituras...")
     except Exception as e:
-        print(f"[ERRO I2C] Falha fatal: {e}. Desativando trava do laser.")
-        pessoa_na_frente = True
+        print(f"[ERRO I2C] Falha fatal ao conectar o laser: {e}")
+        pessoa_na_frente = True # Destrava a IA apenas em caso de falha física severa
         return
 
-    falhas = 0
+    falhas_consecutivas = 0
+
     while True:
         try:
-            dist = sensor.get_distance()
-            if dist > 0:
-                falhas = 0
-                if 20 < dist < DISTANCIA_GATILHO_MM:
+            distancia_mm = sensor.get_distance()
+
+            if distancia_mm > 0:
+                falhas_consecutivas = 0
+
+                if 20 < distancia_mm < DISTANCIA_GATILHO_MM:
                     pessoa_na_frente = True
                 else:
                     pessoa_na_frente = False
             else:
-                falhas += 1
+                falhas_consecutivas += 1
                 pessoa_na_frente = False
 
             # Watchdog de reinicialização
-            if falhas >= 3:
+            if falhas_consecutivas >= 3:
+                print("[AVISO] Barramento I2C travou! O Watchdog está reiniciando o laser...")
                 try:
                     sensor.stop_ranging()
-                    time.sleep(0.5)
+                except:
+                    pass
+                time.sleep(0.5)
+                try:
                     sensor.start_ranging(VL53L0X.VL53L0X_BETTER_ACCURACY_MODE)
-                except: pass
-                falhas = 0
+                except:
+                    pass
+                falhas_consecutivas = 0
+
             time.sleep(0.2)
-        except:
+
+        except Exception as e:
             time.sleep(0.5)
 
 def ler_temperatura():
