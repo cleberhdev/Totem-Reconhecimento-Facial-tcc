@@ -5,6 +5,7 @@ venv/
 .\venv
 .venv
 .env
+.env.example
 
 # arquivos temporarios do python.
 __pycache__/
