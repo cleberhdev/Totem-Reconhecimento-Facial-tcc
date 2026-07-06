@@ -1,223 +1,143 @@
-# 🛡️ Sistema de Reconhecimento Facial Seguro
+---
 
-### 🔐 Arquitetura Privada e Compatível com LGPD
+# 🛡️ Sistema de Reconhecimento Facial Seguro na Borda (*Edge Computing*)
 
-![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
-![OpenCV](https://img.shields.io/badge/OpenCV-4.x-green)
-![LGPD](https://img.shields.io/badge/Compliance-LGPD-success)
-![Security](https://img.shields.io/badge/Security-AES--128%20%7C%20JWT%20%7C%20SHA--256-red)
+## 🔐 Arquitetura Privada e Compatível com LGPD
 
 **Autor:** Cleber Henrique Lacerda Duarte
 **Projeto:** Trabalho de Conclusão de Curso (TCC) — IFPI Campus Floriano
 
 ---
 
-## 📌 Visão Geral
+### 📌 Visão Geral
 
-Este projeto implementa um **Totem Inteligente de Reconhecimento Facial** voltado para ambientes clínicos, com foco absoluto em **segurança da informação e privacidade de dados biométricos**.
+Este projeto implementa um Totem Inteligente de Reconhecimento Facial voltado para ambientes clínicos, com foco absoluto em segurança da informação e privacidade de dados biométricos.
 
-Diferente de sistemas tradicionais, esta solução foi projetada sob o princípio de:
-
-> 🔒 **Zero exposição de dados sensíveis**
-
-O sistema atua como um **Provedor de Identidade (IdP)**, realizando todo o processamento biométrico localmente e comunicando-se com sistemas externos exclusivamente por meio de **tokens seguros e efêmeros**.
+Diferente de sistemas tradicionais centralizados na nuvem, esta solução foi projetada sob o paradigma da **Computação de Borda (*Edge Computing*)**, processando a Inteligência Artificial localmente e operando sob o princípio de **Zero exposição de dados sensíveis**. O sistema atua como um Provedor de Identidade (IdP), comunicando-se com sistemas externos exclusivamente por meio de *tokens* seguros e efêmeros.
 
 ---
 
-## 🎯 Objetivos do Sistema
+### 🖥️ Arquitetura de Hardware Distribuída
 
-* Garantir autenticação biométrica segura de pacientes
-* Evitar armazenamento de imagens sensíveis
-* Reduzir riscos de vazamento de dados
-* Estar em conformidade com a **Lei Geral de Proteção de Dados (LGPD)**
-* Oferecer uma arquitetura escalável e segura para clínicas
+Para otimizar o processamento e reduzir o custo de implantação, o sistema físico foi dividido em nós especializados:
 
----
-
-## 🔐 Arquitetura de Segurança (LGPD by Design)
-
-O sistema foi desenvolvido com múltiplas camadas de proteção:
-
-### 1. 🧠 Privacy by Design
-
-* Nenhuma imagem (`.jpg`, `.png`) é salva em disco
-* Dados visuais existem apenas na **memória RAM**
-* Descarte imediato após processamento
-
-### 2. 🔄 Biometria Cancelável (Bio-hashing)
-
-* Vetores faciais (128D) são transformados matematicamente
-* Uso de **matriz ortogonal secreta**
-* Impossibilidade prática de reconstrução facial
-
-### 3. 🔐 Criptografia em Repouso
-
-* Banco biométrico protegido com **AES-128 (Fernet)**
-* Chaves nunca são armazenadas em disco
-* Uso obrigatório de variáveis de ambiente
-
-### 4. 🎟️ Tokenização Segura
-
-* Emissão de **JWT (JSON Web Token)**
-* Validade limitada (2 horas)
-* Comunicação segura com APIs externas
-
-### 5. 🕶️ Pseudonimização de Dados
-
-* Nenhum dado pessoal identificável é armazenado
-* Uso de **SHA-256 com salt**
-* Logs totalmente anonimizados
+* **Nó Sensor (Captura):** Microcontrolador **ESP32-CAM** (sensor óptico OV2640), responsável por transmitir o vídeo via rede local Wi-Fi (fluxo HTTP/MJPEG contínuo).
+* **Nó de Processamento:** Microcomputador de placa única **Labrador 32-bits**, responsável pela interface gráfica (display HDMI touch), processamento multithreading e inferência biométrica (rodando de 20 a 30 FPS).
+* **Gatilho de Hardware (*Event-Driven*):** Sensor de Tempo de Voo (ToF) a laser **VL53L0X** via I2C, que acorda a Inteligência Artificial apenas quando um paciente se aproxima a menos de 80 cm, poupando a CPU de sobrecargas térmicas.
 
 ---
 
-## 🗂️ Estrutura do Projeto
+### 🔐 Arquitetura de Segurança (LGPD *by Design*)
 
-A arquitetura foi reduzida ao mínimo necessário para aumentar a segurança:
+O sistema foi desenvolvido com múltiplas camadas de proteção, mitigando ataques físicos e lógicos:
 
-```text
-/
-├── 03_reconhecer.py
-├── matriz_projecao.npy
-├── encodings.pickle
-├── totem_banco.db
-└── README.md
-```
+1. **🧠 *Privacy by Design* (Não-persistência):**
+* Nenhuma imagem bruta (.jpg, .png) é salva em disco.
+* Os dados visuais existem exclusivamente na memória RAM volátil.
+* Descarte matemático imediato logo após a extração das características fiduciais.
 
-> ⚠️ Arquivos sensíveis são gerados automaticamente na primeira execução
 
----
+2. **🔄 Biometria Cancelável (*Bio-hashing*):**
+* Vetores faciais (128D) são multiplicados por uma Matriz Ortogonal gerada aleatoriamente.
+* A face original é matematicamente destruída (inviabilizando reconstrução facial via GANs).
+* Em caso de violação, o *template* pode ser descartado e substituído.
 
-## ⚙️ Tecnologias Utilizadas
 
-### 🔹 Bibliotecas Externas
+3. **🔐 Criptografia de Dados em Repouso (*Data-at-rest*):**
+* O arquivo de *embeddings* (`encodings.pickle`) é cifrado com **AES-128** (via biblioteca Fernet).
+* As chaves criptográficas são lidas dinamicamente do arquivo `.env` restrito na Labrador, embaralhando os bytes caso o hardware seja subtraído.
 
-* `opencv-python` → Captura de vídeo e interface
-* `face_recognition` → Extração de embeddings faciais
-* `numpy` → Processamento matemático e Bio-hashing
-* `cryptography` → Criptografia (Fernet / AES)
-* `PyJWT` → Geração de tokens seguros
-* `Flask` → API local integrada
 
-### 🔹 Bibliotecas Nativas
+4. **🕶️ Pseudonimização Estrutural:**
+* O banco de dados relacional (SQLite) não armazena nomes em texto claro.
+* Identificadores são ofuscados via função unidirecional **SHA-256**.
 
-* `hashlib` (SHA-256)
-* `sqlite3`
-* `pickle`
-* `threading`
-* `datetime`, `time`, `os`, `sys`, `socket`
+
+5. **🎟️ Tokenização Segura:**
+* Emissão de **JWT** (JSON Web Token) com validade limitada.
+* Comunicação segura com APIs e sistemas legados da clínica sem trafegar biometria.
+
+
 
 ---
 
-## 🚀 Execução do Projeto
+### ⚙️ Tecnologias Utilizadas
 
-### 1. Instale as dependências
+**Linguagens e Firmwares:**
+
+* Python 3.x (Motor de IA e Servidor na Labrador)
+* C++ / API ESP-IDF (Firmware do ESP32-CAM)
+
+**Bibliotecas Principais:**
+
+* `opencv-python` → Captura de vídeo de rede e interface
+* `face_recognition` → Extração de *embeddings* faciais baseada na rede FaceNet
+* `numpy` → Processamento de tensores e matrizes de *Bio-hashing*
+* `cryptography` → Cifragem simétrica AES-128
+* `PyJWT` e `Flask` → Geração de *tokens* e orquestração de API local
+* `python-dotenv` → Gerenciamento seguro de variáveis de ambiente no Totem
+* `hashlib` e `sqlite3` → Anonimização e persistência local
+
+---
+
+### 🚀 Configuração e Execução no Totem
+
+**1. Instale as dependências na placa Labrador**
 
 ```bash
-pip install opencv-python face_recognition numpy cryptography PyJWT flask
+pip install opencv-python face_recognition numpy cryptography PyJWT flask python-dotenv
+
 ```
 
----
+**2. Geração Segura do Arquivo `.env**`
+O sistema é blindado e não inicializará sem as chaves de segurança. Na primeira execução (ou via script de setup), o código gerará automaticamente as chaves fortes e criará um arquivo oculto `.env` na raiz do projeto na Labrador.
 
-### 2. Configure as variáveis de ambiente
+Este arquivo conterá as credenciais que serão carregadas diretamente para a memória RAM durante a execução, mantendo a arquitetura segura sem a necessidade de injeção manual a cada reinicialização da placa.
 
-O sistema **não inicia sem as chaves de segurança**.
+*Estrutura gerada no arquivo `.env`:*
 
-#### 🔑 Gerar chave Fernet:
+```env
+CHAVE_BIOMETRIA=SuaChaveFernetGeradaEmBase64=
+CHAVE_JWT=SuaChaveJWTGeradaAleatoriamente
 
-```python
-from cryptography.fernet import Fernet
-print(Fernet.generate_key().decode())
 ```
 
-#### 💻 Windows (PowerShell):
+*(Atenção: O arquivo `.env` deve permanecer restrito na Labrador e jamais ser versionado no GitHub ou compartilhado).*
 
-```powershell
-$env:CHAVE_BIOMETRIA="SUA_CHAVE_FERNET"
-$env:CHAVE_JWT="SUA_CHAVE_JWT"
-```
-
-#### 🐧 Linux:
-
-```bash
-export CHAVE_BIOMETRIA="SUA_CHAVE_FERNET"
-export CHAVE_JWT="SUA_CHAVE_JWT"
-```
-
----
-
-### 3. Execute o sistema
+**3. Execute o nó principal**
 
 ```bash
 python 03_reconhecer.py
+
 ```
 
 ---
 
-## 🧠 Arquitetura Interna
+### 🧠 Orquestração de Threads
 
-O sistema utiliza **multithreading** para garantir desempenho em tempo real:
+Para garantir tempo de resposta de *check-in* inferior a 1 segundo e não travar a interface gráfica (mantendo fluidez na recepção), o Python opera com processamento assíncrono:
 
-### 🎥 Thread Principal
-
-* Captura e renderização de vídeo
-* Interface fluida (30+ FPS)
-
-### 🤖 Thread de IA
-
-* Processamento assíncrono
-* Reconhecimento facial
-* Geração de token JWT
-
-### 🌐 Thread do Servidor (Flask)
-
-* Comunicação com sistemas externos
-
-#### Endpoints disponíveis:
-
-* `POST /api/cadastrar_direto`
-  → Cadastro biométrico seguro
-
-* `GET /api/relatorio`
-  → Logs anonimizados
-
-* `GET /video_feed`
-  → Monitoramento remoto
+* **Thread Principal:** Busca os *frames* HTTP do ESP32-CAM via rede e atualiza a interface de vídeo em tempo real.
+* **Thread de IA:** Captura um quadro limpo, processa a matriz, realiza a distância Euclidiana, gera o token e descarta a imagem.
+* **Thread do Servidor (Flask):** Mantém os *endpoints* (ex: `/api/cadastrar_direto`) abertos para receber comandos remotos sem interromper a vigilância da câmera.
 
 ---
 
-## 📊 Diferenciais do Projeto
+### 📊 Diferenciais do Projeto
 
-✔ Arquitetura orientada à privacidade
-✔ Nenhuma exposição de dados sensíveis
-✔ Aplicação real de conceitos de segurança da informação
-✔ Integração com sistemas externos via tokens
-✔ Ideal para ambientes clínicos e regulamentados
-
----
-
-## ⚠️ Aviso
-
-Este projeto é um **protótipo acadêmico**, desenvolvido para fins de pesquisa em:
-
-* Segurança da Informação
-* Visão Computacional
-* Proteção de Dados
-
-Não deve ser utilizado diretamente em produção sem auditoria de segurança adicional.
+* ✔️ Validação empírica de robustez facial contra oclusões (óculos, chapéus).
+* ✔️ Arquitetura *Privacy by Design* documentada e auditada com provas matemáticas.
+* ✔️ Proteção total contra roubo de *hardware* e injeção lógica de dados (*spoofing* do vetor).
+* ✔️ Solução de borda totalmente automatizada, com gerenciamento seguro de chaves via `.env`.
 
 ---
 
-## 📄 Licença
+### ⚠️ Aviso
 
-Este projeto pode ser adaptado para fins acadêmicos e estudos.
-Para uso comercial, recomenda-se revisão jurídica e técnica.
+Este projeto é um artefato tecnológico acadêmico desenvolvido sob a ótica da **Design Science Research (DSR)**, voltado para pesquisa aplicada em Segurança da Informação e Visão Computacional no Setor de Saúde.
 
----
+### 📄 Licença e Contato
 
-## 🤝 Contato
+Desenvolvido para fins de estudo e defesa acadêmica. Para escalabilidade comercial ou integração em sistemas hospitalares reais em produção, recomenda-se auditoria de infraestrutura e aplicação de hardware biométrico com sensores liveness (*Anti-spoofing 3D*).
 
-Caso queira evoluir este projeto ou integrá-lo a soluções reais, entre em contato.
-
----
-
-> 🔐 *Segurança não é um recurso — é um requisito.*
+🔐 *Segurança não é um recurso — é um requisito.*
