@@ -1,0 +1,20 @@
+# ambiente virtual.
+venv-deepface/
+venv
+venv/
+.\venv
+.venv
+.env
+
+# arquivos temporarios do python.
+__pycache__/
+*.pyc
+
+# arquivos de dados gerados.
+embeddings.pkl
+encodings.pickle
+totem_banco.db-journal
+totem_banco.db
+chave_mestra.key
+matriz_projecao.npy
+totem_banco.db
